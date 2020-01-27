@@ -9,6 +9,48 @@ from sklearn.cluster import KMeans
 import pickle
 import requests
 import io
+from http.server import BaseHTTPRequestHandler, HTTPServer
+import logging
+import cgi
+from pprint import pprint
+
+
+class S(BaseHTTPRequestHandler):
+    def _set_response(self, text):
+        self.send_response(200)
+        self.send_header('Content-type', 'text/html')
+        self.end_headers()
+        self.wfile.write(text.encode('utf-8'))
+
+    def do_POST(self):
+        logging.info("POST request,\nPath: %s\nHeaders:\n%s\n", str(self.path), str(self.headers))
+        ctype, pdict = cgi.parse_header(self.headers['content-type'])
+        pdict['boundary'] = bytes(pdict['boundary'], "utf-8")
+
+        if ctype == 'multipart/form-data':
+            fields = cgi.parse_multipart(self.rfile, pdict)
+
+            ocrspace_token = "e69b2d014b88957"
+            ScrToTxt = ScreenToTxt(ocrspace_token)
+            res = ScrToTxt(fields['image'][0])
+
+            self._set_response(res.to_csv())
+
+        return True
+
+
+def run(server_class=HTTPServer, handler_class=S, port=80):
+    logging.basicConfig(level=logging.INFO)
+    server_address = ('', port)
+    httpd = server_class(server_address, handler_class)
+    logging.info('Starting httpd...\n')
+    try:
+        httpd.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    httpd.server_close()
+    logging.info('Stopping httpd...\n')
+
 
 class ScreenToTxt:
     
@@ -90,12 +132,15 @@ class ScreenToTxt:
         result=result.content.decode()
         result = json.loads(result)
         text_detected = result.get("ParsedResults")[0].get("ParsedText")
+
+        pprint(text_detected)
+
         txt_lst=[i.split('\t') for i in text_detected.split('\r\n')]
         txt_df=pd.DataFrame(txt_lst[1:])
         txt_df.drop(txt_df.columns[-1], axis=1, inplace=True)
         txt_df=txt_df.dropna()
         txt_df.columns=['Player','Value','Gold','Round','W-L']
-        txt_df['Player']=txt_df['Player'].apply(lambda x: x.replace(' ', '')[:4])
+        # txt_df['Player']=txt_df['Player'].apply(lambda x: x.replace(' ', '')[:4])
         return txt_df
         
     def findName(self, value_play):
@@ -103,16 +148,16 @@ class ScreenToTxt:
         for name in value_play:
              new_name.append(next((s for s in self.name_from_file if name.upper() in s.upper()), None))
         return new_name
-        
-        
-    def __call__(self, image_file, txt_file=None):
+
+    def __call__(self, image_data, txt_file=None):
         print('start...')
         df=pd.DataFrame()
         dfname=None
         try:
             # open file
-            self.img=cv2.imread(image_file)
-            print(image_file)
+            jpg_as_np = np.frombuffer(image_data, dtype=np.uint8)
+            self.img=cv2.imdecode(jpg_as_np, flags=1)
+            # print(image_data)
             # segmentation
             img_roi = self.segmentRoi()
         except Exception as e:
@@ -121,47 +166,51 @@ class ScreenToTxt:
         else:
             try:
                 #text recognition 
-                df=self.ocr(img_roi, 'eng')
-                df_rus=self.ocr(img_roi, 'rus')
-                value_play=list(df['Player'])
-                value_play_rus=list(df_rus['Player'])
+                # df=self.ocr(img_roi, 'eng')
+                df = self.ocr(img_roi, 'rus')
+                return df
+
+                # df = df_rus
+                # value_play=list(df['Player'])
+                # value_play_rus=list(df_rus['Player'])
                         
                 #if exist txt_file - compare result with a file
-                if txt_file:
-                    with open(txt_file, 'r', encoding='utf-8') as f:
-                        for row in f:
-                            self.name_from_file.extend(row.rstrip().split(' '))
-                    new_name=self.findName(value_play)
-                    new_name_rus=self.findName(value_play_rus)
-                    for index, name in enumerate(new_name):
-                        if not name:
-                            new_name[index]=new_name_rus[index]
-                    df['Player']=new_name
+                # if txt_file:
+                #     with open(txt_file, 'r', encoding='utf-8') as f:
+                #         for row in f:
+                #             self.name_from_file.extend(row.rstrip().split(' '))
+                #     new_name=self.findName(value_play)
+                #     new_name_rus=self.findName(value_play_rus)
+                #     for index, name in enumerate(new_name):
+                #         if not name:
+                #             new_name[index]=new_name_rus[index]
+                #     df['Player']=new_name
                     
                 #if not txt_file -  two columns with names in 'eng' and 'rus'  
-                else:
-                    df['PlayerRus']=df_rus['Player']
-                name_pict=image_file.rsplit('.', 1)
-                dfname=name_pict[0]+'.csv'
-                df.to_csv(dfname)
-                print(df)
+                #else:
+                #    df['PlayerRus']=df_rus['Player']
+                # name_pict=image_file.rsplit('.', 1)
+                # dfname='data.csv'
+                # df.to_csv(dfname)
+                # pprint(df)
             except Exception as e:
                 print(e)
             
-        return dfname
+        return None
 
 
 class Listener:
     def __init__(self, ip, port):
-        listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        listener.bind(('', port))  # IP
-        listener.listen(0)
-        self.imgfile=None
-        self.txtfile=None
-        print('[+] Waiting for incoming connection...')
-        self.connection, address = listener.accept()
-        print('[+] Got a connection from ' + str(address))
+        run(port=port)
+        # listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        # listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        # listener.bind(('', port))  # IP
+        # listener.listen(0)
+        # self.imgfile=None
+        # self.txtfile=None
+        # print('[+] Waiting for incoming connection...')
+        # self.connection, address = listener.accept()
+        # print('[+] Got a connection from ' + str(address))
 
     def reliable_send(self, data: bytes) -> None:
         # Разбиваем передаваемые данные на куски максимальной длины 0xffff (65535)
@@ -184,7 +233,7 @@ class Listener:
         while True:
             part_len = int.from_bytes(self.readexactly(2), "big") # Определяем длину ожидаемого куска
             if part_len == 0:
-            # Если пришёл кусок нулевой длины, то приём окончен
+                # Если пришёл кусок нулевой длины, то приём окончен
                 return b
             b += self.readexactly(part_len) # Считываем сам кусок
 
@@ -202,7 +251,7 @@ class Listener:
         with open(path, 'rb') as file:
             #return base64.encodebytes(file.read()).decode("utf-8")
             return base64.b64encode(file.read())
-        
+
     def run_ocr(self):
         try:
             ocrspace_token = "e69b2d014b88957"
@@ -218,7 +267,7 @@ class Listener:
         while True:
             
             result = self.execute()
-            file=result.decode()
+            file = result.decode()
             if file in ['.jpg','.png','.txt']:
                 path=dirpath+'\\data'+'\\file'+file
                 result = self.execute()
@@ -242,16 +291,11 @@ class Listener:
                     self.connection.close()
                     break
                     
- 
-
 
 host = socket.gethostname()
-port = 80
-while True:
-    try:
-        my_listener = Listener('0.0.0.0', port)
-        my_listener.run()
-    except Exception as e:
-        print(e)
+port = 8088
+
+my_listener = Listener('0.0.0.0', port)
+my_listener.run()
 
         

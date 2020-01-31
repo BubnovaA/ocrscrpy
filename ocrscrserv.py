@@ -95,30 +95,16 @@ class ScreenToTxt:
     def segmentRoi(self):
         #select the area with the game result
         print('segmentRoi...')
-        narray=self.segmentImage()
-        with open('finalized_model.sav', 'rb', ) as model_file:
-            model = pickle.load(model_file)
-        df = pd.DataFrame(narray)
-        all_predict=model.predict(narray)
-        df['k']=all_predict
-        df['xw']=df.iloc[:,0]+df.iloc[:,2]
-        y=df.iloc[:,1].min()
-        h=df.iloc[:,1].max()
-        x_delta=5
-        z_delta=70
-        if df[df['k']==1][0].min()<df[df['k']==0][0].min():
-            x=int(df[df['k']==1].xw.max())+x_delta
-            w=int(df[df['k']==0][0].min()) - x
-            z=int(df[df['k']==0][0].max())+z_delta
-        else:
-            x=int(df[df['k']==0].xw.max())+x_delta
-            w=int(df[df['k']==1][0].min()) - x
-            z=int(df[df['k']==1][0].max())+z_delta
-         
-        roi_player=self.img[y:y+h, x:x+w]
-        roi_value=self.img[y:y+h, z:self.img_size[0]]
-        roi=np.concatenate((roi_player,roi_value), axis=1)
-        #self.viewImage(roi, 'roi') 
+        fragment = cv2.imread('name.jpg')
+        fragmentHeight, fragmentWidth = fragment.shape[:2]
+        # find the fragment
+        result = cv2.matchTemplate(self.img, fragment, cv2.TM_CCOEFF)
+        (_, _, minLoc, maxLoc) = cv2.minMaxLoc(result)
+        topLeft = maxLoc
+        height, width = self.img.shape[:2]
+        x=topLeft[0]+fragmentWidth
+        xd=x+fragmentWidth*3
+        roi=self.img[0:height, x:xd]
         return roi
 
     def ocr(self, img, lng='eng'):
@@ -132,15 +118,15 @@ class ScreenToTxt:
         result=result.content.decode()
         result = json.loads(result)
         text_detected = result.get("ParsedResults")[0].get("ParsedText")
-
-        pprint(text_detected)
-
         txt_lst=[i.split('\t') for i in text_detected.split('\r\n')]
-        txt_df=pd.DataFrame(txt_lst[1:])
-        txt_df.drop(txt_df.columns[-1], axis=1, inplace=True)
+        txt_df=pd.DataFrame(txt_lst)
         txt_df=txt_df.dropna()
-        txt_df.columns=['Player','Value','Gold','Round','W-L']
-        # txt_df['Player']=txt_df['Player'].apply(lambda x: x.replace(' ', '')[:4])
+        txt_df.drop(txt_df.columns[-1], axis=1, inplace=True)
+        txt_df.columns=['Player']
+        txt_df=txt_df.reset_index()
+        txt_df['index']=txt_df['index'].apply(int)+1
+        txt_df.columns=['Rang','Player']
+        pprint(txt_df)
         return txt_df
         
     def findName(self, value_play):
@@ -166,8 +152,8 @@ class ScreenToTxt:
         else:
             try:
                 #text recognition 
-                # df=self.ocr(img_roi, 'eng')
-                df = self.ocr(img_roi, 'rus')
+                df=self.ocr(img_roi, 'eng')
+                #df = self.ocr(img_roi, 'rus')
                 return df
 
                 # df = df_rus

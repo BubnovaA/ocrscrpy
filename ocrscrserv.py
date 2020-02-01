@@ -66,32 +66,7 @@ class ScreenToTxt:
         cv2.waitKey(0)
         cv2.destroyAllWindows()
 
-    def segmentImage(self):
-        print('segmentImage...')
-        img = self.img
-        reimg = img.reshape((-1,3))
-        reimg = np.float32(reimg)
-        criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
-        num_clusters = 2
-        _, label, center = cv2.kmeans(reimg, num_clusters, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
-        center = np.uint8(center)
-        res = center[label.flatten()].reshape((img.shape))
-        res_hsv = cv2.cvtColor(res, cv2.COLOR_BGR2HSV)
-        blurred = cv2.GaussianBlur(res_hsv, (51, 51), 0)
-        grey = cv2.cvtColor(blurred, cv2.COLOR_BGR2GRAY) 
-        _, thresh = cv2.threshold(grey, 0, 255, cv2.THRESH_BINARY_INV +
-                            cv2.THRESH_OTSU) 
-        contours, _ = cv2.findContours(thresh,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
-        
-        list_countours=[]
-        for c in contours:
-            x,y,w,h = cv2.boundingRect(c)
-            if x and y:
-                list_countours.append([x,y,w,h])
-            else: self.img_size=[w,h]
-        return np.array(list_countours)
-        
-
+    
     def segmentRoi(self):
         #select the area with the game result
         print('segmentRoi...')
@@ -153,32 +128,15 @@ class ScreenToTxt:
             try:
                 #text recognition 
                 df=self.ocr(img_roi, 'eng')
-                #df = self.ocr(img_roi, 'rus')
+                df_rus=self.ocr(img_roi, 'rus')
+                df['PlayerRus']=df_rus['Player']
+                name_pict=image_file.rsplit('.', 1)
+                dfname='data.csv'
+                df.to_csv(dfname)
+                pprint(df)
                 return df
 
-                # df = df_rus
-                # value_play=list(df['Player'])
-                # value_play_rus=list(df_rus['Player'])
-                        
-                #if exist txt_file - compare result with a file
-                # if txt_file:
-                #     with open(txt_file, 'r', encoding='utf-8') as f:
-                #         for row in f:
-                #             self.name_from_file.extend(row.rstrip().split(' '))
-                #     new_name=self.findName(value_play)
-                #     new_name_rus=self.findName(value_play_rus)
-                #     for index, name in enumerate(new_name):
-                #         if not name:
-                #             new_name[index]=new_name_rus[index]
-                #     df['Player']=new_name
-                    
-                #if not txt_file -  two columns with names in 'eng' and 'rus'  
-                #else:
-                #    df['PlayerRus']=df_rus['Player']
-                # name_pict=image_file.rsplit('.', 1)
-                # dfname='data.csv'
-                # df.to_csv(dfname)
-                # pprint(df)
+                
             except Exception as e:
                 print(e)
             
@@ -188,15 +146,7 @@ class ScreenToTxt:
 class Listener:
     def __init__(self, ip, port):
         run(port=port)
-        # listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        # listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        # listener.bind(('', port))  # IP
-        # listener.listen(0)
-        # self.imgfile=None
-        # self.txtfile=None
-        # print('[+] Waiting for incoming connection...')
-        # self.connection, address = listener.accept()
-        # print('[+] Got a connection from ' + str(address))
+        
 
     def reliable_send(self, data: bytes) -> None:
         # Разбиваем передаваемые данные на куски максимальной длины 0xffff (65535)

@@ -26,6 +26,7 @@ class S(BaseHTTPRequestHandler):
         logging.info("POST request,\nPath: %s\nHeaders:\n%s\n", str(self.path), str(self.headers))
         ctype, pdict = cgi.parse_header(self.headers['content-type'])
         pdict['boundary'] = bytes(pdict['boundary'], "utf-8")
+        pdict['CONTENT-LENGTH'] = int(self.headers['content-length']) # Python3.7 bug workaround
 
         if ctype == 'multipart/form-data':
             fields = cgi.parse_multipart(self.rfile, pdict)

@@ -1,0 +1,47 @@
+<html lang="ru">
+<head>
+    <title></title>
+
+</head>
+
+
+<body>
+
+<form action="/" method="POST" enctype="multipart/form-data">
+    <input type="file" id="file" name="image">
+    <input type="submit" name="submit">
+</form>
+
+<div id="wait" hidden>Подождите...</div>
+
+<pre>
+
+</pre>
+
+
+<script>
+
+    const form = document.querySelector('form');
+    const result = document.querySelector('pre');
+    const wait = document.querySelector('#wait');
+
+    form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        wait.style.display = 'block';
+        const formData = new FormData(form);
+
+        const res = await fetch('http://localhost:8088', {
+            method: 'POST',
+            body: formData
+        });
+        const resultText = await res.text();
+        console.log(resultText);
+        wait.style.display = 'none';
+        result.innerHTML = resultText;
+    })
+</script>
+
+</body>
+
+
+</html>

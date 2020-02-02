@@ -6,6 +6,7 @@ RUN pip install pandas
 RUN pip install -r requirements.txt
 RUN pip install opencv-python
 COPY name.jpg /name.jpg
+COPY index.html /index.html
 COPY ocrscrserv.py /ocrscrserv.py
 EXPOSE 8088
 CMD ["python",  "ocrscrserv.py"]

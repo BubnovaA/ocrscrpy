@@ -23,6 +23,10 @@ class S(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(text.encode('utf-8'))
 
+    def do_GET(self):
+        with open('/index.html', 'r') as file:
+            self._set_response(file.read())
+
     def do_POST(self):
         logging.info("POST request,\nPath: %s\nHeaders:\n%s\n", str(self.path), str(self.headers))
         ctype, pdict = cgi.parse_header(self.headers['content-type'])

@@ -1,7 +1,7 @@
 <html lang="ru">
 <head>
+    <meta charset="UTF-8">
     <title></title>
-
 </head>
 
 
@@ -30,7 +30,7 @@
         wait.style.display = 'block';
         const formData = new FormData(form);
 
-        const res = await fetch('http://localhost:8088', {
+        const res = await fetch('http://195.9.195.19:8088', {
             method: 'POST',
             body: formData
         });

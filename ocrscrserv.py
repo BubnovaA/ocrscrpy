@@ -127,13 +127,13 @@ class ScreenToTxt:
         else:
             try:
                 #text recognition 
-                df=self.ocr(img_roi, 'eng')
+                # df=self.ocr(img_roi, 'eng')
                 df_rus=self.ocr(img_roi, 'rus')
                 df['PlayerRus']=df_rus['Player']
-                name_pict=image_file.rsplit('.', 1)
-                dfname='data.csv'
-                df.to_csv(dfname)
-                pprint(df)
+                # name_pict=image_file.rsplit('.', 1)
+                # dfname='data.csv'
+                # df.to_csv(dfname)
+                # pprint(df)
                 return df
 
                 
